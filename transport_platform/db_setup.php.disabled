@@ -1,0 +1,89 @@
+<?php
+require_once 'config.php';
+
+if (file_exists(__DIR__ . '/.installed')) {
+    die("Installation déjà effectuée. Supprimez le fichier .installed pour réinitialiser.");
+}
+
+$sql = "
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    user_type ENUM('chauffeur', 'transitaire') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    nom VARCHAR(100),
+    telephone VARCHAR(20),
+    zone_service VARCHAR(100),
+    type_vehicule VARCHAR(50),
+    disponibilite ENUM('disponible', 'occupé', 'indisponible') DEFAULT 'disponible',
+    description TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS announcements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    titre VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    depart VARCHAR(100),
+    arrivee VARCHAR(100),
+    type_marchandise VARCHAR(100),
+    poids VARCHAR(50),
+    date_livraison DATE,
+    prix DECIMAL(10,2),
+    status ENUM('active', 'ferme', 'termine') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    announcement_id INT,
+    message TEXT NOT NULL,
+    lu TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reviewer_id INT NOT NULL,
+    reviewed_id INT NOT NULL,
+    note INT CHECK (note BETWEEN 1 AND 5),
+    commentaire TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS applications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    announcement_id INT NOT NULL,
+    chauffeur_id INT NOT NULL,
+    message TEXT,
+    status ENUM('en_attente', 'accepte', 'refuse') DEFAULT 'en_attente',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+    FOREIGN KEY (chauffeur_id) REFERENCES users(id) ON DELETE CASCADE
+);
+";
+
+try {
+    $pdo->exec($sql);
+    file_put_contents(__DIR__ . '/.installed', date('Y-m-d H:i:s'));
+    echo "Base de données créée avec succès!";
+} catch(PDOException $e) {
+    echo "Erreur: " . $e->getMessage();
+}
+?>
